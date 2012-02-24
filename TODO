@@ -1,0 +1,9 @@
+* Task list
+** TODO putil API
+*** Context: ok for now, I dont know if its going to need more fields
+*** Functions: send_cb (OK), recv_cb (TODO)
+** TODO pastebin application
+*** Send more parameters (expiration date, visibility etc...)
+*** Error checking and usefull messages
+** TODO paste util main program
+** TODO stand-alone server
