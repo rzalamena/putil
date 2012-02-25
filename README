@@ -1,0 +1,32 @@
+putil - Paste Util
+---
+
+This program was designed to easen the upload of 'pastes' to a remote
+location.
+
+A classical example of this is the pastebin.com website: people share
+piece of code / logs / texts with a reasonably short URL.
+
+Being written in C, and using almost none libraries, this application or
+library API could be used in another ways like debugging application or
+keeping logs of enviroments with limited resources.
+
+
+Current status
+---
+Under development
+
+There are still some work to be done to stabilize the current code and
+ensure propper function under bad conditions.
+
+
+Supported paste destionations:
+---
+* Pastebin.com
+* (not yet) putil_server
+
+
+Usage
+---
+
+$ putil -f test_file.c

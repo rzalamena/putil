@@ -3,7 +3,10 @@
 *** Context: ok for now, I dont know if its going to need more fields
 *** Functions: send_cb (OK), recv_cb (TODO)
 ** TODO pastebin application
-*** Send more parameters (expiration date, visibility etc...)
+*** Send more parameters: paste_name
 *** Error checking and usefull messages
+*** Parse and return only the URL in send_cb_pastebin()
 ** TODO paste util main program
+*** Add to getopt support for: paste name, expiration time and privacy
+*** Add support for pipe input instead of only files
 ** TODO stand-alone server

@@ -31,7 +31,7 @@ static __dead void
 usage(void)
 {
 	fprintf(stderr,
-	    "Usage:\n%1$s <-f file_name>\n"
+	    "Usage:\n%1$s <-f file_name> <-t type>\n"
 	    "%1$s -v\n",
 	    __progname);
 	exit(EXIT_FAILURE);
@@ -52,7 +52,7 @@ main(int argc, char *argv[])
 	if (argc == 1)
 		usage();
 
-	while ((copt = getopt(argc, argv, "vf:")) != -1) {
+	while ((copt = getopt(argc, argv, "vf:i:n:")) != -1) {
 		switch (copt) {
 		case 'v':
 			printf("%s current version: %s\n",
@@ -68,6 +68,14 @@ main(int argc, char *argv[])
 				exit(EXIT_SUCCESS);
 			}
 			input_fd = fopen(filename, "r");
+			break;
+
+		case 'i':
+			pb_paste_format_id(pctx, strtol(optarg, NULL, 0));
+			break;
+
+		case 'n':
+			pb_paste_format_name(pctx, optarg);
 			break;
 		}
 	}
