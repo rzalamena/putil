@@ -47,7 +47,10 @@ enum pb_paste_duration {
 enum pb_privacy_setting {
 	PB_PUBLIC	= 0,	/* '0' */
 	PB_UNLISTED	= 1,	/* '1' */
+#ifdef __notyet__
+	/* TODO needs some work to be used with /api/api_post.php */
 	PB_PRIVATE	= 2,	/* '2' */
+#endif
 
 	PB_GET_PRIVACY /* Returns the current privacy setting */
 };
@@ -277,9 +280,33 @@ struct paste_ctx	*new_pb_paste(void);
 void	 pb_paste_format_name(struct paste_ctx *, const char *);
 void	 pb_paste_format_id(struct paste_ctx *, const int);
 
+/* pb_duration - function that sets or gets current paste duration
+ * pb_privacy - function that sets or gets the current privacy setting
+ *
+ * Sets or gets current paste settings.
+ */
 enum pb_paste_duration pb_duration(struct paste_ctx *,
     enum pb_paste_duration);
 enum pb_privacy_setting pb_privacy(struct paste_ctx *,
     enum pb_privacy_setting);
+
+/* pb_paste_name - sets the next paste names
+ *
+ * Set the next paste names with the supplied string.
+ * The maximum size of a name is defined by system supplied
+ * MAXHOSTNAMELEN or else 256 will be used.
+ *
+ * If user supplied a NULL string, then this function returns the
+ * current paste name.
+ *
+ * Returns the supplied string or if no string supplied the old
+ * defined paste name.
+ */
+const char *
+pb_paste_name(struct paste_ctx *, const char *);
+
+/* pb_show options - show pastebin options for usage() */
+void
+pb_show_options(void);
 
 #endif /* __PASTEBIN__ */

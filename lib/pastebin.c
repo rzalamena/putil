@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -240,10 +241,10 @@ struct paste_format {
 struct pastebin_ctx {
 #ifdef __notyet__
 	/* this is planned for logged users support */
-	char			 user[MAXHOSTNAMELEN];
-	char			 pass[128];
+	char			 user_key[64];
 #endif
 
+	char			 paste_name[MAXHOSTNAMELEN];
 	enum pb_paste_duration	 duration;
 	enum pb_privacy_setting	 privacy;
 	struct paste_format	*type;
@@ -292,7 +293,7 @@ send_cb_pastebin(struct paste_ctx *pctx, const u_char *buf)
 	struct pastebin_ctx	*ctx;
 	struct addrinfo		*res, *it;
 	struct addrinfo		 hints;
-	int			 sd, status;
+	int			 sd, status, i;
 	char			*buffer, *answer;
 	char			*saux, *bufaux;
 	char			 req_header[256], req_options[256];
@@ -359,10 +360,12 @@ send_cb_pastebin(struct paste_ctx *pctx, const u_char *buf)
 	snprintf(req_options, sizeof(req_options) - 1,
 	    "&paste_expire_date=%s"
 	    "&paste_private=%s"
-	    "&paste_format=%s",
+	    "&paste_format=%s"
+	    "&paste_name=%s",
 	    pb_conv_expire_date(ctx->duration),
 	    pb_conv_privacy(ctx->privacy),
-	    ctx->type->name);
+	    ctx->type->name,
+	    ctx->paste_name);
 	req_options[sizeof(req_options) - 1] = 0;
 	req_opt_len = strlen(req_options);
 
@@ -395,13 +398,13 @@ send_cb_pastebin(struct paste_ctx *pctx, const u_char *buf)
 	memcpy(bufaux, saux, real_req_len);
 	bufaux += real_req_len;
 	total_len += real_req_len;
+	free(saux);
 
 	memcpy(bufaux, req_options, req_opt_len);
 	bufaux += req_opt_len;
 	total_len += req_opt_len;
 
 	*bufaux = 0;
-	fprintf(stderr, "\n[%s]\n", buffer);
 
 	/* Send HTTP post to pastebin.com */
 	ret = write(sd, buffer, total_len);
@@ -418,6 +421,7 @@ send_cb_pastebin(struct paste_ctx *pctx, const u_char *buf)
 		return (NULL);
 	}
 
+	/* Read the answer and safely terminate it with '\0'. */
 	ret = read(sd, buffer, BUFSIZ);
 	close(sd);
 	if (ret == -1) {
@@ -425,16 +429,42 @@ send_cb_pastebin(struct paste_ctx *pctx, const u_char *buf)
 		free(buffer);
 		return (NULL);
 	}
-	/* TODO parse and return only the paste URL */
+	buffer[ret - 1] = 0;
+
+	/* XXX filter HTTP POST junk */
+	saux = strstr(buffer, PASTEBIN_HOST);
+	if (saux == NULL) {
+		free(buffer);
+		return (NULL);
+	}
+	saux = memchr(saux, '/', strlen(saux));
+	if (saux == NULL) {
+		free(buffer);
+		return (NULL);
+	}
+	saux++;
+
+	/* XXX start URL string */
+	i = snprintf(buffer, BUFSIZ,
+	    "%s/raw.php?i=", PASTEBIN_HOST);
+
+	/* Copy paste ID */
+	while (isalnum(*saux)) {
+		buffer[i] = *saux;
+		i++;
+		saux++;
+	}
+	buffer[i] = 0;
 
 	/* Only use what we need */
-	answer = realloc(buffer, (ret + 1));
+	total_len = strlen(buffer) + 1;
+	answer = realloc(buffer, total_len);
 	if (answer == NULL) {
 		free(buffer);
 		return (NULL);
 	}
 
-	answer[ret] = 0;
+	answer[total_len - 1] = 0;
 	return (answer);
 }
 
@@ -472,8 +502,10 @@ pb_conv_privacy(enum pb_privacy_setting set)
 	case PB_UNLISTED:
 		return ("1");
 
+#ifdef __notyet__
 	case PB_PRIVATE:
 		return ("2");
+#endif
 
 	default:
 		return ("1");
@@ -560,4 +592,50 @@ pb_paste_format_id(struct paste_ctx *pctx, const int id)
 	pf = pb_paste_format_by_index(id);
 
 	ctx->type = pf;
+}
+
+const char *
+pb_paste_name(struct paste_ctx *pctx, const char *str)
+{
+	struct pastebin_ctx	*ctx;
+
+	ctx = pctx->data;
+
+	if (str == NULL)
+		return (ctx->paste_name);
+
+	strncpy(ctx->paste_name, str, sizeof(ctx->paste_name));
+	ctx->paste_name[sizeof(ctx->paste_name) - 1] = 0;
+
+	return (ctx->paste_name);
+}
+
+void
+pb_show_options(void)
+{
+	int	 i;
+	fprintf(stderr, "pastebin.com options:\n---\n"
+	    "Paste types:\n");
+
+	for (i = 0; paste_format_list[i].key != 0; i++)
+		fprintf(stderr, "  %03d = %s\n",
+		    paste_format_list[i].key,
+		    paste_format_list[i].name);
+
+	fprintf(stderr, "  Default paste format is: (121) text\n");
+
+	fprintf(stderr, "Paste duration:\n"
+	    "  0 - Never\n"
+	    "  1 - 10 minutes (default)\n"
+	    "  2 - 1 hour\n"
+	    "  3 - 1 day\n"
+	    "  4 - 1 Month\n");
+
+	fprintf(stderr, "Paste privacy:\n"
+	    "  0 - Public\n"
+	    "  1 - Unlisted (default)\n"
+#ifdef __notyet__
+	    "  2 - Private\n"
+#endif
+	);
 }

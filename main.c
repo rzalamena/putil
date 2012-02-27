@@ -15,6 +15,8 @@
  */
 
 #include <err.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,14 +27,23 @@
 
 #define VERSION_STR	"0.1"
 
-extern char	*__progname;
+extern const char	*__progname;
 
 static __dead void
 usage(void)
 {
 	fprintf(stderr,
-	    "Usage:\n%1$s <-f file_name> <-t type>\n"
-	    "%1$s -v\n",
+	    "Usage:\n"
+	    "'%1$s -p <-h>' - Use pastebin.com\n"
+	    "'%1$s -v' - Show version\n"
+	    "---\n"
+	    "Additional parameters:\n"
+	    "  -f <FILENAME> - Selects file to upload.\n"
+	    "  -i <type_id> or -n <type_name> - Selects file type.\n"
+	    "  -h - Show help and list options.\n"
+	    "  -d - Paste duration.\n"
+	    "  -y - Paste privacy setting.\n"
+	    "  -m - Paste name.\n",
 	    __progname);
 	exit(EXIT_FAILURE);
 }
@@ -44,6 +55,8 @@ main(int argc, char *argv[])
 	size_t			 read_ret;
 	char			 copt, filename[FILENAME_MAX];
 	char			 buf[524288];
+	int			 paste_dest, f_flag;
+	long			 duration;
 	struct paste_ctx	*pctx;
 
 	pctx = new_pb_paste();
@@ -52,8 +65,24 @@ main(int argc, char *argv[])
 	if (argc == 1)
 		usage();
 
-	while ((copt = getopt(argc, argv, "vf:i:n:")) != -1) {
+	f_flag = 0;
+	paste_dest = 0;
+	while ((copt = getopt(argc, argv, "hpvf:i:n:d:y:m:")) != -1) {
 		switch (copt) {
+		case 'p':
+			/* FIXME use enumerators and add other paste
+			 * destinations support.
+			 */
+			paste_dest = 1;
+			break;
+
+		case 'h':
+			if (paste_dest == 1)
+				pb_show_options();
+
+			exit(EXIT_SUCCESS);
+			break;
+
 		case 'v':
 			printf("%s current version: %s\n",
 			    __progname, VERSION_STR);
@@ -61,6 +90,10 @@ main(int argc, char *argv[])
 			break;
 
 		case 'f':
+			if (f_flag == 1)
+				break;
+
+			f_flag = 1;
 			if (strlcpy(filename, optarg, (sizeof(filename) - 1))
 			    >= (sizeof(filename) - 1)) {
 				fprintf(stderr, "user input error: "
@@ -77,18 +110,44 @@ main(int argc, char *argv[])
 		case 'n':
 			pb_paste_format_name(pctx, optarg);
 			break;
+
+		case 'd':
+			duration = strtol(optarg, NULL, 0);
+			if (duration == 0 &&
+			    (errno == EINVAL || errno == ERANGE))
+				duration = PB_TEN_MINUTES;
+
+			/* XXX extra care here, since '0' means never
+			 * expires
+			 */
+			pb_duration(pctx, duration);
+			break;
+
+		case 'y':
+			pb_privacy(pctx, strtol(optarg, NULL, 0));
+			break;
+
+		case 'm':
+			pb_paste_name(pctx, optarg);
+			break;
 		}
 	}
+
+	if (paste_dest == 0
+	    || f_flag == 0)
+		usage();
 
 	if (input_fd == NULL)
 		err(1, "open()");
 	read_ret = fread(buf, sizeof(char), (sizeof(buf) - 1), input_fd);
+	buf[sizeof(buf) - 1] = 0;
 	if (read_ret == 0) {
 		fprintf(stderr, "fread() error.\n");
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(stderr, "[%s]\n", putil_send(pctx, buf));
+	printf("Your raw paste URL is:\n"
+	    "%s\n", putil_send(pctx, buf));
 
 	exit(EXIT_SUCCESS);
 }

@@ -29,4 +29,5 @@ Supported paste destionations:
 Usage
 ---
 
-$ putil -f test_file.c
+Pasting a C code to pastebin.com:
+$ putil -p -f test_file.c -i 28
